@@ -4,21 +4,28 @@
 name:                pnmimage
 version:             0.1.0.0
 synopsis:            PNM image loader
--- description:
+description:         An implementation of PNM image loader.
+homepage:            https://github.com/naohaq/pnmimage-hs
 license:             BSD3
 license-file:        LICENSE
 author:              Naoyuki MORITA
 maintainer:          naohaq@ps.sakura.ne.jp
 -- copyright:
-category:            Codec
+category:            Codec, Graphics, Image
 build-type:          Simple
-extra-source-files:  ChangeLog.md
+extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
+source-repository head
+  type: git
+  location: git://github.com/naohaq/pnmimage-hs.git
+
 library
-  -- exposed-modules:
+  hs-source-dirs:      src
+  exposed-modules:
+     Codec.Picture.Pnm
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.11 && <4.12
-  hs-source-dirs:      src
+  build-depends:
+     base >=4.11 && <4.12, JuicyPixels >=3.2.9, bytestring >= 0.9 && <0.11
   default-language:    Haskell2010
