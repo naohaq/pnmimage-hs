@@ -58,6 +58,15 @@ findSizeHeader h = catchIOError f g
           ln <- readHeaderLine h
           return $ readSize ln
 
+readMaxValue :: Handle -> IO (Maybe Int)
+readMaxValue h = catchIOError f g
+  where g e = if isEOFError e then return Nothing else ioError e
+        f = do
+          ln <- readHeaderLine h
+          case parseInt ln of
+            Just (x, _) -> return (Just x)
+            Nothing     -> return Nothing
+
 sampleP5At :: (Int,Int,B.ByteString) -> Int -> Int -> Pixel8
 sampleP5At (w,_,body) x y = v
   where k = w*y + x
@@ -79,12 +88,16 @@ loadP5Image_main h = do
   result <- findSizeHeader h
   case result of
     Just (width,height) -> do
-      ln <- hGetLine h
-      failUnless (take 3 ln == "255") "Malformed PNM header."
-      let sz = width * height
-      body <- B.hGet h sz
-      failUnless (B.length body >= sz) "Insufficient image data."
-      return $ generateImage (sampleP5At (width,height,body)) width height
+      mag <- readMaxValue h
+      case mag of
+        Just mag' -> do
+          failUnless (mag' <= 255) "Unsupported format."
+          let sz = width * height
+          body <- B.hGet h sz
+          failUnless (B.length body >= sz) "Insufficient image data."
+          return $ generateImage (sampleP5At (width,height,body)) width height
+        Nothing -> do
+          fail "Malformed PNM header."
     Nothing -> do
       fail "Malformed PNM header."
 
@@ -93,12 +106,16 @@ loadP6Image_main h = do
   result <- findSizeHeader h
   case result of
     Just (width,height) -> do
-      ln <- hGetLine h
-      failUnless (take 3 ln == "255") "Malformed PNM header."
-      let sz = width * height * 3
-      body <- B.hGet h sz
-      failUnless (B.length body >= sz) "Insufficient image data."
-      return $ generateImage (sampleP6At (width,height,body)) width height
+      mag <- readMaxValue h
+      case mag of
+        Just mag' -> do
+          failUnless (mag' <= 255) "Unsupported format."
+          let sz = width * height * 3
+          body <- B.hGet h sz
+          failUnless (B.length body >= sz) "Insufficient image data."
+          return $ generateImage (sampleP6At (width,height,body)) width height
+        Nothing -> do
+          fail "Malformed PNM header."
     Nothing -> do
       fail "Malformed PNM header."
 
