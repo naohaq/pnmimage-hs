@@ -83,53 +83,53 @@ failUnless :: Bool -> String -> IO ()
 failUnless False msg = fail msg
 failUnless _     _   = return ()
 
-loadP5Image_main :: Handle -> IO (Image Pixel8)
-loadP5Image_main h = do
-  result <- findSizeHeader h
-  case result of
-    Just (width,height) -> do
-      mag <- readMaxValue h
-      case mag of
-        Just mag' -> do
-          failUnless (mag' <= 255) "Unsupported format."
-          let sz = width * height
-          body <- B.hGet h sz
-          failUnless (B.length body >= sz) "Insufficient image data."
-          return $ generateImage (sampleP5At (width,height,body)) width height
-        Nothing -> do
-          fail "Malformed PNM header."
-    Nothing -> do
-      fail "Malformed PNM header."
+readPnmHeader :: Handle -> IO (Either String (MagicNumber,Int,Int))
+readPnmHeader h = do
+  mn <- readMagicNumber h
+  case mn of
+    Nothing -> return $ Left "Magic number not found."
+    Just n -> do
+      sz <- findSizeHeader h
+      case sz of
+        Nothing -> return $ Left "Malformed PNM header."
+        Just (width,height) -> do
+          return $ Right (n,width,height)
 
-loadP6Image_main :: Handle -> IO (Image PixelRGB8)
-loadP6Image_main h = do
-  result <- findSizeHeader h
-  case result of
-    Just (width,height) -> do
-      mag <- readMaxValue h
-      case mag of
-        Just mag' -> do
-          failUnless (mag' <= 255) "Unsupported format."
-          let sz = width * height * 3
-          body <- B.hGet h sz
-          failUnless (B.length body >= sz) "Insufficient image data."
-          return $ generateImage (sampleP6At (width,height,body)) width height
-        Nothing -> do
-          fail "Malformed PNM header."
-    Nothing -> do
-      fail "Malformed PNM header."
+loadP5Image_main :: Handle -> Int -> Int -> IO (Image Pixel8)
+loadP5Image_main h width height = do
+  mag <- readMaxValue h
+  case mag of
+    Nothing -> fail "Malformed PNM header."
+    Just mag' -> do
+      failUnless (mag' <= 255) "Unsupported format."
+      let sz = width * height
+      body <- B.hGet h sz
+      failUnless (B.length body >= sz) "Insufficient image data."
+      return $ generateImage (sampleP5At (width,height,body)) width height
+
+loadP6Image_main :: Handle -> Int -> Int -> IO (Image PixelRGB8)
+loadP6Image_main h width height = do
+  mag <- readMaxValue h
+  case mag of
+    Nothing -> fail "Malformed PNM header."
+    Just mag' -> do
+      failUnless (mag' <= 255) "Unsupported format."
+      let sz = width * height * 3
+      body <- B.hGet h sz
+      failUnless (B.length body >= sz) "Insufficient image data."
+      return $ generateImage (sampleP6At (width,height,body)) width height
 
 loadPNM_main :: Handle -> IO DynamicImage
 loadPNM_main h = do
-  mn <- readMagicNumber h
-  case mn of
-    Nothing -> fail "Magic number not found."
-    Just n  -> case n of
+  hdr <- readPnmHeader h
+  case hdr of
+    Left msg -> fail msg
+    Right (n,width,height) -> case n of
       P5 -> do
-        img <- loadP5Image_main h
+        img <- loadP5Image_main h width height
         return (ImageY8 img)
       P6 -> do
-        img <- loadP6Image_main h
+        img <- loadP6Image_main h width height
         return (ImageRGB8 img)
       _  -> fail "Unsupported format."
 
